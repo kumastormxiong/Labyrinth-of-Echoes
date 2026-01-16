@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GameStats, SessionStats, MazeData, Direction, HighScoreRecord } from '../types';
 import { Clock, Trophy, Play, Keyboard, RotateCcw, User, Map as MapIcon, Grid3X3, Music } from 'lucide-react';
 import { MUSIC_TRACKS } from '../constants';
+import { musicService } from '../services/musicService';
 
 interface HUDProps {
   stats: GameStats;
@@ -179,6 +180,7 @@ export const Menu: React.FC<MenuProps> = ({ stats, sessionStats, highScore, onRe
   const [nameInput, setNameInput] = useState(stats.playerName);
 
   const handleStart = () => {
+    musicService.stopPreview();
     if (isInitial && !stats.playerName && nameInput.trim()) {
       onSetName(nameInput.trim());
     } else {
@@ -245,9 +247,7 @@ export const Menu: React.FC<MenuProps> = ({ stats, sessionStats, highScore, onRe
                     key={index}
                     onClick={() => {
                       if (track) {
-                        const audio = new Audio(`${import.meta.env.BASE_URL}music/${track.filename}`);
-                        audio.volume = 0.8;
-                        audio.play().catch(e => console.error("播放失败:", e));
+                        musicService.playPreview(track);
                       }
                     }}
                     className="flex items-start gap-2 bg-white/5 p-2 rounded border border-white/5 hover:bg-white/10 hover:border-purple-500/30 cursor-pointer transition-all group"

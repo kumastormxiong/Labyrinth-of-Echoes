@@ -217,15 +217,26 @@ const App: React.FC = () => {
     setPlayerState({ x, y, dir });
     if (!maze || isCrossing) return;
 
-    const cell = maze.grid[y][x];
-    if (cell.type === 'exitA' || cell.type === 'exitB') {
-      const nextId = cell.type === 'exitA' ? sessionStats.nextTrackAId : sessionStats.nextTrackBId;
-      const track = musicService.getTrackById(nextId!);
-      if (track) {
-        setIsCrossing(true);
-        // Set currentTrackId here to trigger the HUD notification during crossfade
-        setSessionStats(prev => ({ ...prev, currentTrackId: nextId }));
-        musicService.playTrack(track, true);
+    // Proximity Music Logic (Threshold = 4 cells)
+    const distA = Math.abs(x - maze.exitA.x) + Math.abs(y - maze.exitA.y);
+    const distB = Math.abs(x - maze.exitB.x) + Math.abs(y - maze.exitB.y);
+    const THRESHOLD = 4;
+
+    if (distA < THRESHOLD) {
+      if (sessionStats.nextTrackAId && sessionStats.currentTrackId !== sessionStats.nextTrackAId) {
+        const track = musicService.getTrackById(sessionStats.nextTrackAId);
+        if (track) {
+          setSessionStats(prev => ({ ...prev, currentTrackId: sessionStats.nextTrackAId }));
+          musicService.playTrack(track, true);
+        }
+      }
+    } else if (distB < THRESHOLD) {
+      if (sessionStats.nextTrackBId && sessionStats.currentTrackId !== sessionStats.nextTrackBId) {
+        const track = musicService.getTrackById(sessionStats.nextTrackBId);
+        if (track) {
+          setSessionStats(prev => ({ ...prev, currentTrackId: sessionStats.nextTrackBId }));
+          musicService.playTrack(track, true);
+        }
       }
     }
   };

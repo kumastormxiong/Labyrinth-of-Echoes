@@ -8,11 +8,16 @@ class MusicService {
     private fadeInterval: any = null;
     private maxVolume = 0.8;
 
+    private previewAudio: HTMLAudioElement;
+
     constructor() {
         this.audioA = new Audio();
         this.audioB = new Audio();
+        this.previewAudio = new Audio();
         this.audioA.loop = true;
         this.audioB.loop = true;
+        this.audioA.preload = "auto";
+        this.audioB.preload = "auto";
         this.audioA.volume = 0;
         this.audioB.volume = 0;
     }
@@ -27,6 +32,19 @@ class MusicService {
         return MUSIC_TRACKS.find(t => t.id === id) || null;
     }
 
+    playPreview(track: MusicTrack) {
+        this.stopPreview();
+        this.previewAudio.src = `${import.meta.env.BASE_URL}music/${track.filename}`;
+        this.previewAudio.volume = 0.8;
+        this.previewAudio.load();
+        this.previewAudio.play().catch(e => console.error("Preview play failed:", e));
+    }
+
+    stopPreview() {
+        this.previewAudio.pause();
+        this.previewAudio.currentTime = 0;
+    }
+
     playTrack(track: MusicTrack, crossfade: boolean = false) {
         if (this.currentTrack?.id === track.id) return; // Already playing or fading in
 
@@ -34,8 +52,21 @@ class MusicService {
         const currentPlayer = this.activePlayer === 'A' ? this.audioA : this.audioB;
 
         this.currentTrack = track;
+
+        // Reset state before loading new track to avoid 416 errors
+        nextPlayer.pause();
+        nextPlayer.currentTime = 0;
         nextPlayer.src = `${import.meta.env.BASE_URL}music/${track.filename}`;
-        nextPlayer.play().catch(e => console.error("Audio play failed:", e));
+        nextPlayer.load(); // Explicit load to reset headers and avoid Range issues
+
+        nextPlayer.play().catch(e => {
+            console.error("Audio play failed, retrying once:", e);
+            // Simple retry logic
+            setTimeout(() => {
+                nextPlayer.load();
+                nextPlayer.play().catch(e2 => console.error("Retry failed:", e2));
+            }, 500);
+        });
 
         if (crossfade) {
             this.startCrossfade(currentPlayer, nextPlayer);
@@ -90,6 +121,7 @@ class MusicService {
     stopAll() {
         this.audioA.pause();
         this.audioB.pause();
+        this.previewAudio.pause();
         this.audioA.volume = 0;
         this.audioB.volume = 0;
     }
