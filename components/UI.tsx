@@ -200,13 +200,13 @@ export const Menu: React.FC<MenuProps> = ({ stats, sessionStats, highScore, onRe
 
         {/* High Score Display */}
         {highScore && (
-          <div className="mb-4 p-3 bg-gradient-to-r from-yellow-900/20 to-amber-900/20 border border-yellow-500/30 rounded-lg">
-            <div className="text-[9px] text-yellow-500/70 uppercase tracking-widest mb-1">🏆 历史最高分</div>
-            <div className="flex items-center justify-between text-xs">
+          <div className="mb-4 p-4 bg-gradient-to-r from-yellow-900/20 to-amber-900/20 border border-yellow-500/30 rounded-lg">
+            <div className="text-base text-yellow-500/70 uppercase tracking-widest mb-2">🏆 历史最高分</div>
+            <div className="flex items-center justify-between text-2xl">
               <span className="text-yellow-300 font-bold">{highScore.playerName}</span>
-              <span className="text-yellow-100">{highScore.score}分</span>
+              <span className="text-yellow-100 font-bold">{highScore.score}分</span>
             </div>
-            <div className="text-[9px] text-yellow-500/50 mt-1">
+            <div className="text-base text-yellow-500/50 mt-2">
               {Math.floor(highScore.time)}s · {highScore.keyPresses}步
             </div>
           </div>
