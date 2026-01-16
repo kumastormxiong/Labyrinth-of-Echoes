@@ -29,12 +29,19 @@ export interface PlayerState {
   rotation: number; // in radians
 }
 
+export interface MusicHistoryEntry {
+  trackId: string;
+  mazeSize: number;
+  exitType: 'A' | 'B';
+  timestamp: number;
+}
+
 export interface GameStats {
   playerName: string;
   totalScore: number;
   totalTime: number; // in seconds
   totalKeyPresses: number;
-  trackHistory: string[];
+  trackHistory: MusicHistoryEntry[];
 }
 
 export interface SessionStats {
@@ -44,4 +51,12 @@ export interface SessionStats {
   currentTrackId?: string;
   nextTrackAId?: string;
   nextTrackBId?: string;
+}
+
+export interface HighScoreRecord {
+  playerName: string;
+  score: number;
+  time: number;
+  keyPresses: number;
+  timestamp: number;
 }

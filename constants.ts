@@ -1,4 +1,4 @@
-export const BASE_GRID_SIZE = 8;
+export const BASE_GRID_SIZE = 6;
 export const WALL_HEIGHT = 2;
 export const CELL_SIZE = 2;
 export const MOVEMENT_SPEED = 0.15;

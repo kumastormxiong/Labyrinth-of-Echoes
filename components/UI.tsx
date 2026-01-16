@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameStats, SessionStats, MazeData, Direction } from '../types';
+import { GameStats, SessionStats, MazeData, Direction, HighScoreRecord } from '../types';
 import { Clock, Trophy, Play, Keyboard, RotateCcw, User, Map as MapIcon, Grid3X3, Music } from 'lucide-react';
 import { MUSIC_TRACKS } from '../constants';
 
@@ -168,13 +168,14 @@ export const Minimap: React.FC<MinimapProps> = ({ maze, playerX, playerY, player
 interface MenuProps {
   stats: GameStats;
   sessionStats: SessionStats;
+  highScore: HighScoreRecord | null;
   onResume: () => void;
   onSetName: (name: string) => void;
   onReset: () => void;
   isInitial: boolean;
 }
 
-export const Menu: React.FC<MenuProps> = ({ stats, sessionStats, onResume, onSetName, onReset, isInitial }) => {
+export const Menu: React.FC<MenuProps> = ({ stats, sessionStats, highScore, onResume, onSetName, onReset, isInitial }) => {
   const [nameInput, setNameInput] = useState(stats.playerName);
 
   const handleStart = () => {
@@ -193,9 +194,23 @@ export const Menu: React.FC<MenuProps> = ({ stats, sessionStats, onResume, onSet
         <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 mb-1 italic tracking-tighter">
           幻径迷宫
         </h1>
-        <p className="text-lg text-gray-400 mb-6 font-light italic tracking-wide">
+        <p className="text-lg text-gray-400 mb-2 font-light italic tracking-wide">
           Labyrinth of Echoes
         </p>
+
+        {/* High Score Display */}
+        {highScore && (
+          <div className="mb-4 p-3 bg-gradient-to-r from-yellow-900/20 to-amber-900/20 border border-yellow-500/30 rounded-lg">
+            <div className="text-[9px] text-yellow-500/70 uppercase tracking-widest mb-1">🏆 历史最高分</div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-yellow-300 font-bold">{highScore.playerName}</span>
+              <span className="text-yellow-100">{highScore.score}分</span>
+            </div>
+            <div className="text-[9px] text-yellow-500/50 mt-1">
+              {Math.floor(highScore.time)}s · {highScore.keyPresses}步
+            </div>
+          </div>
+        )}
 
         {!showNameInput && (
           <p className="text-gray-500 mb-6 font-mono text-sm tracking-widest">
@@ -222,26 +237,53 @@ export const Menu: React.FC<MenuProps> = ({ stats, sessionStats, onResume, onSet
             <h3 className="text-xs text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
               <Music className="w-3 h-3" /> Exploration Log (Music)
             </h3>
-            <div className="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-              {stats.trackHistory.map((id, index) => {
-                const track = MUSIC_TRACKS.find(t => t.id === id);
+            <div className="max-h-64 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+              {stats.trackHistory.map((entry, index) => {
+                const track = MUSIC_TRACKS.find(t => t.id === entry.trackId);
                 return (
-                  <div key={index} className="flex items-center gap-3 bg-white/5 p-2 rounded border border-white/5">
-                    <span className="text-[10px] text-gray-600 font-mono">#{index + 1}</span>
-                    <div className="flex flex-col">
-                      <span className="text-xs text-gray-300 font-bold">{track?.nameCN}</span>
-                      <span className="text-[10px] text-gray-500 italic">{track?.nameEN}</span>
+                  <div
+                    key={index}
+                    onClick={() => {
+                      if (track) {
+                        const audio = new Audio(`/music/${track.filename}`);
+                        audio.volume = 0.8;
+                        audio.play().catch(e => console.error("播放失败:", e));
+                      }
+                    }}
+                    className="flex items-start gap-2 bg-white/5 p-2 rounded border border-white/5 hover:bg-white/10 hover:border-purple-500/30 cursor-pointer transition-all group"
+                  >
+                    <span className="text-[9px] text-gray-600 font-mono mt-0.5">#{index + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[9px] text-cyan-400 font-mono">
+                          {entry.mazeSize}x{entry.mazeSize}
+                        </span>
+                        <span className={`text-[9px] font-bold ${entry.exitType === 'A' ? 'text-green-400' : 'text-blue-400'}`}>
+                          Exit {entry.exitType}
+                        </span>
+                      </div>
+                      <div className="truncate text-xs text-gray-300 font-bold group-hover:text-white">
+                        {track?.nameCN}
+                      </div>
+                      <div className="truncate text-[10px] text-gray-500 italic group-hover:text-gray-400">
+                        {track?.nameEN}
+                      </div>
                     </div>
+                    <Play className="w-3 h-3 text-gray-600 group-hover:text-purple-400 flex-shrink-0 mt-1" />
                   </div>
                 );
               })}
               {/* Current Track */}
               {sessionStats.currentTrackId && (
-                <div className="flex items-center gap-3 bg-purple-500/20 p-2 rounded border border-purple-500/30">
-                  <span className="text-[10px] text-purple-400 font-mono animate-pulse">LIVE</span>
-                  <div className="flex flex-col">
-                    <span className="text-xs text-purple-100 font-bold">{MUSIC_TRACKS.find(t => t.id === sessionStats.currentTrackId)?.nameCN}</span>
-                    <span className="text-[10px] text-purple-300 italic">{MUSIC_TRACKS.find(t => t.id === sessionStats.currentTrackId)?.nameEN}</span>
+                <div className="flex items-start gap-2 bg-purple-500/20 p-2 rounded border border-purple-500/30">
+                  <span className="text-[9px] text-purple-400 font-mono animate-pulse mt-0.5">LIVE</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate text-xs text-purple-100 font-bold">
+                      {MUSIC_TRACKS.find(t => t.id === sessionStats.currentTrackId)?.nameCN}
+                    </div>
+                    <div className="truncate text-[10px] text-purple-300 italic">
+                      {MUSIC_TRACKS.find(t => t.id === sessionStats.currentTrackId)?.nameEN}
+                    </div>
                   </div>
                 </div>
               )}

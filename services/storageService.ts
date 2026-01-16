@@ -1,4 +1,4 @@
-import { GameStats } from '../types';
+import { GameStats, HighScoreRecord } from '../types';
 import { STORAGE_KEY } from '../constants';
 
 const DEFAULT_STATS: GameStats = {
@@ -29,4 +29,44 @@ export const saveStats = (stats: GameStats) => {
   } catch (e) {
     console.error('Failed to save stats', e);
   }
+};
+
+const HIGH_SCORE_KEY = 'labyrinth_high_score';
+
+export const loadHighScore = (): HighScoreRecord | null => {
+  try {
+    const data = localStorage.getItem(HIGH_SCORE_KEY);
+    if (data) {
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error('Failed to load high score', e);
+  }
+  return null;
+};
+
+export const saveHighScore = (record: HighScoreRecord) => {
+  try {
+    localStorage.setItem(HIGH_SCORE_KEY, JSON.stringify(record));
+  } catch (e) {
+    console.error('Failed to save high score', e);
+  }
+};
+
+export const checkAndUpdateHighScore = (stats: GameStats): HighScoreRecord | null => {
+  const currentHighScore = loadHighScore();
+
+  if (!currentHighScore || stats.totalScore > currentHighScore.score) {
+    const newRecord: HighScoreRecord = {
+      playerName: stats.playerName,
+      score: stats.totalScore,
+      time: stats.totalTime,
+      keyPresses: stats.totalKeyPresses,
+      timestamp: Date.now()
+    };
+    saveHighScore(newRecord);
+    return newRecord;
+  }
+
+  return currentHighScore;
 };

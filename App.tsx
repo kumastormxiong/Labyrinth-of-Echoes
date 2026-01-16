@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Maze3D } from './components/Maze3D';
 import { HUD, Menu, Minimap } from './components/UI';
-import { MazeData, GameStats, SessionStats, Direction } from './types';
+import { MazeData, GameStats, SessionStats, Direction, HighScoreRecord } from './types';
 import { generateMaze } from './services/mazeGenerator';
-import { loadStats, saveStats } from './services/storageService';
+import { loadStats, saveStats, loadHighScore, checkAndUpdateHighScore } from './services/storageService';
 import { BASE_GRID_SIZE, MUSIC_TRACKS } from './constants';
 import { musicService } from './services/musicService';
 
@@ -20,6 +20,7 @@ const App: React.FC = () => {
   // Stats State
   const [stats, setStats] = useState<GameStats>({ playerName: '', totalScore: 0, totalTime: 0, totalKeyPresses: 0, trackHistory: [] });
   const [sessionStats, setSessionStats] = useState<SessionStats>({ score: 0, startTime: 0, elapsedTime: 0 });
+  const [highScore, setHighScore] = useState<HighScoreRecord | null>(null);
 
   // Music State Tracking
   const [isCrossing, setIsCrossing] = useState(false);
@@ -30,7 +31,8 @@ const App: React.FC = () => {
   const pendingTimeRef = useRef<number>(0); // Time accumulated since last stats sync
 
   const getMazeSize = (score: number) => {
-    return BASE_GRID_SIZE + Math.floor(score / 10);
+    // 0-9分 → 6x6, 10-19分 → 7x7, 20-29分 → 8x8, ...
+    return 6 + Math.floor(score / 10);
   };
 
   // Helper to pick next tracks
@@ -55,6 +57,9 @@ const App: React.FC = () => {
   useEffect(() => {
     const saved = loadStats();
     setStats(saved);
+    // Load high score
+    const savedHighScore = loadHighScore();
+    setHighScore(savedHighScore);
     // Initial maze based on saved score
     const newMaze = generateMaze(getMazeSize(saved.totalScore), 0, 0);
     setMaze(newMaze);
@@ -133,6 +138,23 @@ const App: React.FC = () => {
       if (e.key === 'Tab') {
         e.preventDefault(); // Prevent tab focus change
         if (isPlaying && !isMenuOpen) {
+          // 只在打开小地图时扣分（从关闭变为打开）
+          if (!showMap) {
+            // 当前是关闭状态，即将打开，扣5分
+            setStats(current => {
+              const newScore = Math.max(0, current.totalScore - 5);
+              const updated = { ...current, totalScore: newScore };
+              saveStats(updated);
+              const updatedHighScore = checkAndUpdateHighScore(updated);
+              if (updatedHighScore) setHighScore(updatedHighScore);
+              return updated;
+            });
+            setSessionStats(prev => ({
+              ...prev,
+              score: Math.max(0, prev.score - 5)
+            }));
+          }
+          // 切换小地图状态
           setShowMap(prev => !prev);
         }
       }
@@ -214,8 +236,17 @@ const App: React.FC = () => {
     const points = type === 'A' ? 1 : 3;
     const newTotalScore = stats.totalScore + points;
 
-    // Add current track to history
-    const history = [...stats.trackHistory, sessionStats.currentTrackId!];
+    // Add current track to history with context (only if a track is playing)
+    let history = stats.trackHistory;
+    if (sessionStats.currentTrackId) {
+      const historyEntry = {
+        trackId: sessionStats.currentTrackId,
+        mazeSize: maze.width,
+        exitType: type,
+        timestamp: Date.now()
+      };
+      history = [...stats.trackHistory, historyEntry];
+    }
 
     // Pick next tracks for the NEXT level's exits
     const { trackA, trackB } = pickNextTracks();
@@ -229,6 +260,9 @@ const App: React.FC = () => {
         totalTime: prev.totalTime + pendingTimeRef.current
       };
       saveStats(updated);
+      // Check and update high score
+      const updatedHighScore = checkAndUpdateHighScore(updated);
+      if (updatedHighScore) setHighScore(updatedHighScore);
       pendingTimeRef.current = 0;
       return updated;
     });
@@ -243,7 +277,10 @@ const App: React.FC = () => {
 
     const exitNode = type === 'A' ? maze.exitA : maze.exitB;
     const newSize = getMazeSize(newTotalScore);
-    const newMaze = generateMaze(newSize, exitNode.x, exitNode.y);
+    // 确保入口坐标在新迷宫尺寸范围内
+    const safeEntryX = Math.min(exitNode.x, newSize - 1);
+    const safeEntryY = Math.min(exitNode.y, newSize - 1);
+    const newMaze = generateMaze(newSize, safeEntryX, safeEntryY);
 
     setMaze(newMaze);
     setIsCrossing(false);
@@ -280,6 +317,7 @@ const App: React.FC = () => {
         <Menu
           stats={stats}
           sessionStats={sessionStats}
+          highScore={highScore}
           onResume={handleStartResume}
           onSetName={handleSetName}
           onReset={handleReset}
