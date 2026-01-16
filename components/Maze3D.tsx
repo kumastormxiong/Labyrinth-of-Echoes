@@ -305,7 +305,21 @@ const PlayerController: React.FC<ControllerProps> = ({ maze, onExit, onInput, on
       }
 
       const offset = (maze.width * CELL_SIZE) / 2 - CELL_SIZE / 2;
-      const currentCell = maze.grid[pos.y][pos.x];
+
+      // Boundary check: ensure pos is within current maze bounds
+      const safeX = Math.min(Math.max(0, pos.x), maze.width - 1);
+      const safeY = Math.min(Math.max(0, pos.y), maze.height - 1);
+
+      // If pos is out of bounds, update it and skip this frame
+      if (pos.x !== safeX || pos.y !== safeY) {
+        setPos({ x: safeX, y: safeY });
+        const tx = safeX * CELL_SIZE - offset;
+        const tz = safeY * CELL_SIZE - offset;
+        targetPos.current.set(tx, 0, tz);
+        return;
+      }
+
+      const currentCell = maze.grid[safeY][safeX];
 
       const directions = [
         { dx: 0, dy: -1, label: 'N' }, // 0
