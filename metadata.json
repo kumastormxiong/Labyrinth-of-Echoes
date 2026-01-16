@@ -1,0 +1,5 @@
+{
+  "name": "Infinite Psychedelic Maze",
+  "description": "An endless first-person 3D maze runner. Navigate shifting psychedelic corridors, choose your exit (A=+1, B=+3), and track your lifetime stats.",
+  "requestFramePermissions": []
+}
