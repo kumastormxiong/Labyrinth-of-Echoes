@@ -266,9 +266,12 @@ const PlayerController: React.FC<ControllerProps> = ({ maze, onExit, onInput, on
   // Initial setup
   useEffect(() => {
     const offset = (maze.width * CELL_SIZE) / 2 - CELL_SIZE / 2;
+    // Ensure start position is within bounds
+    const safeStartX = Math.min(Math.max(0, maze.start.x), maze.width - 1);
+    const safeStartY = Math.min(Math.max(0, maze.start.y), maze.height - 1);
     // Start position
-    const sx = maze.start.x * CELL_SIZE - offset;
-    const sz = maze.start.y * CELL_SIZE - offset;
+    const sx = safeStartX * CELL_SIZE - offset;
+    const sz = safeStartY * CELL_SIZE - offset;
 
     dummy.position.set(sx, 0, sz);
     dummy.rotation.set(0, 0, 0); // Facing North
@@ -280,7 +283,7 @@ const PlayerController: React.FC<ControllerProps> = ({ maze, onExit, onInput, on
     targetPos.current.copy(dummy.position);
     targetRot.current.copy(dummy.quaternion);
 
-    setPos({ x: maze.start.x, y: maze.start.y });
+    setPos({ x: safeStartX, y: safeStartY });
     setDirIdx(0);
   }, [maze, camera, dummy]);
 

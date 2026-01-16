@@ -245,7 +245,7 @@ export const Menu: React.FC<MenuProps> = ({ stats, sessionStats, highScore, onRe
                     key={index}
                     onClick={() => {
                       if (track) {
-                        const audio = new Audio(`/music/${track.filename}`);
+                        const audio = new Audio(`${import.meta.env.BASE_URL}music/${track.filename}`);
                         audio.volume = 0.8;
                         audio.play().catch(e => console.error("播放失败:", e));
                       }

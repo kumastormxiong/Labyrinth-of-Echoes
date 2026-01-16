@@ -34,7 +34,7 @@ class MusicService {
         const currentPlayer = this.activePlayer === 'A' ? this.audioA : this.audioB;
 
         this.currentTrack = track;
-        nextPlayer.src = `/music/${track.filename}`;
+        nextPlayer.src = `${import.meta.env.BASE_URL}music/${track.filename}`;
         nextPlayer.play().catch(e => console.error("Audio play failed:", e));
 
         if (crossfade) {
