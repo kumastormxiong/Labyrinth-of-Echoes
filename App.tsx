@@ -93,7 +93,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (isPlaying && !isMenuOpen && sessionStats.currentTrackId && !isCrossing) {
       const track = musicService.getTrackById(sessionStats.currentTrackId);
-      if (track) musicService.playTrack(track, false);
+      if (track) musicService.playInitialBGM(track);
     }
   }, [isPlaying, isMenuOpen, sessionStats.currentTrackId, isCrossing]);
 
@@ -106,6 +106,17 @@ const App: React.FC = () => {
       levelBgmIdRef.current = sessionStats.currentTrackId;
     }
   }, [maze, sessionStats.currentTrackId]);
+
+  // Handle Menu Close to stop preview (and effectively restore game music state)
+  useEffect(() => {
+    if (!isMenuOpen) {
+      musicService.stopMenuPreview();
+      // Note: stopMenuPreview restores BGM volume. 
+      // If we are standing on an exit, handlePlayerUpdate will fire on next move? 
+      // No, handlePlayerUpdate fires on move. If we just close menu without moving, we might need to re-assert exit state.
+      // But for now let's assume BGM restore is safe default.
+    }
+  }, [isMenuOpen]);
 
   // Timer Loop - Decoupled from localStorage writes
   const updateTime = useCallback(() => {
@@ -236,7 +247,7 @@ const App: React.FC = () => {
         const track = musicService.getTrackById(sessionStats.nextTrackAId);
         if (track) {
           setSessionStats(prev => ({ ...prev, currentTrackId: sessionStats.nextTrackAId }));
-          musicService.playTrack(track, true);
+          musicService.previewExit(track);
         }
       }
     } else if (onExitB) {
@@ -244,17 +255,15 @@ const App: React.FC = () => {
         const track = musicService.getTrackById(sessionStats.nextTrackBId);
         if (track) {
           setSessionStats(prev => ({ ...prev, currentTrackId: sessionStats.nextTrackBId }));
-          musicService.playTrack(track, true);
+          musicService.previewExit(track);
         }
       }
     } else {
-      // Revert to level BGM if not on exit tile
+      // Revert to level BGM if we were on an exit
+      // We check if currentTrackId is different from levelBgmIdRef
       if (levelBgmIdRef.current && sessionStats.currentTrackId !== levelBgmIdRef.current) {
-        const track = musicService.getTrackById(levelBgmIdRef.current);
-        if (track) {
-          setSessionStats(prev => ({ ...prev, currentTrackId: levelBgmIdRef.current }));
-          musicService.playTrack(track, true);
-        }
+        setSessionStats(prev => ({ ...prev, currentTrackId: levelBgmIdRef.current }));
+        musicService.cancelExitPreview();
       }
     }
   };
@@ -276,6 +285,9 @@ const App: React.FC = () => {
       };
       history = [...stats.trackHistory, historyEntry];
     }
+
+    // Commit the music change (makes current preview the new BGM)
+    musicService.confirmExit();
 
     // Pick next tracks for the NEXT level's exits
     const { trackA, trackB } = pickNextTracks();

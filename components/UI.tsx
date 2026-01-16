@@ -180,7 +180,7 @@ export const Menu: React.FC<MenuProps> = ({ stats, sessionStats, highScore, onRe
   const [nameInput, setNameInput] = useState(stats.playerName);
 
   const handleStart = () => {
-    musicService.stopPreview();
+    musicService.stopMenuPreview();
     if (isInitial && !stats.playerName && nameInput.trim()) {
       onSetName(nameInput.trim());
     } else {
@@ -247,7 +247,7 @@ export const Menu: React.FC<MenuProps> = ({ stats, sessionStats, highScore, onRe
                     key={index}
                     onClick={() => {
                       if (track) {
-                        musicService.playPreview(track);
+                        musicService.playMenuPreview(track);
                       }
                     }}
                     className="flex items-start gap-2 bg-white/5 p-2 rounded border border-white/5 hover:bg-white/10 hover:border-purple-500/30 cursor-pointer transition-all group"
