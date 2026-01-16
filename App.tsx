@@ -97,6 +97,16 @@ const App: React.FC = () => {
     }
   }, [isPlaying, isMenuOpen, sessionStats.currentTrackId, isCrossing]);
 
+  // Track current level's base BGM to revert to when leaving exit
+  const levelBgmIdRef = useRef<string | undefined>(undefined);
+
+  // Update level base BGM when maze/level changes
+  useEffect(() => {
+    if (sessionStats.currentTrackId) {
+      levelBgmIdRef.current = sessionStats.currentTrackId;
+    }
+  }, [maze, sessionStats.currentTrackId]);
+
   // Timer Loop - Decoupled from localStorage writes
   const updateTime = useCallback(() => {
     if (isPlaying && !isMenuOpen) {
@@ -234,6 +244,15 @@ const App: React.FC = () => {
         const track = musicService.getTrackById(sessionStats.nextTrackBId);
         if (track) {
           setSessionStats(prev => ({ ...prev, currentTrackId: sessionStats.nextTrackBId }));
+          musicService.playTrack(track, true);
+        }
+      }
+    } else {
+      // Revert to level BGM if not on exit tile
+      if (levelBgmIdRef.current && sessionStats.currentTrackId !== levelBgmIdRef.current) {
+        const track = musicService.getTrackById(levelBgmIdRef.current);
+        if (track) {
+          setSessionStats(prev => ({ ...prev, currentTrackId: levelBgmIdRef.current }));
           musicService.playTrack(track, true);
         }
       }
