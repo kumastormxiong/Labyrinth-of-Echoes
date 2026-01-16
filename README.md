@@ -1,4 +1,4 @@
-# Labyrinth of Echoes / 幻径迷宫
+# 幻径迷宫 / Labyrinth of Echoes
 
 [中文](#chinese) | [English](#english)
 

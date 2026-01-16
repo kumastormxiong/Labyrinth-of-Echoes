@@ -90,12 +90,13 @@ const App: React.FC = () => {
   }, [pickNextTracks]);
 
   // Handle Music Playback on Start
+  // Handle Music Playback on Start
   useEffect(() => {
-    if (isPlaying && !isMenuOpen && sessionStats.currentTrackId && !isCrossing) {
+    if (isPlaying && sessionStats.currentTrackId && !isCrossing) {
       const track = musicService.getTrackById(sessionStats.currentTrackId);
       if (track) musicService.playInitialBGM(track);
     }
-  }, [isPlaying, isMenuOpen, sessionStats.currentTrackId, isCrossing]);
+  }, [isPlaying, sessionStats.currentTrackId, isCrossing]);
 
   // Track current level's base BGM to revert to when leaving exit
   const levelBgmIdRef = useRef<string | undefined>(undefined);
