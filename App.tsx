@@ -217,12 +217,11 @@ const App: React.FC = () => {
     setPlayerState({ x, y, dir });
     if (!maze || isCrossing) return;
 
-    // Proximity Music Logic (Threshold = 4 cells)
-    const distA = Math.abs(x - maze.exitA.x) + Math.abs(y - maze.exitA.y);
-    const distB = Math.abs(x - maze.exitB.x) + Math.abs(y - maze.exitB.y);
-    const THRESHOLD = 4;
+    // Exact Tile Music Logic
+    const onExitA = x === maze.exitA.x && y === maze.exitA.y;
+    const onExitB = x === maze.exitB.x && y === maze.exitB.y;
 
-    if (distA < THRESHOLD) {
+    if (onExitA) {
       if (sessionStats.nextTrackAId && sessionStats.currentTrackId !== sessionStats.nextTrackAId) {
         const track = musicService.getTrackById(sessionStats.nextTrackAId);
         if (track) {
@@ -230,7 +229,7 @@ const App: React.FC = () => {
           musicService.playTrack(track, true);
         }
       }
-    } else if (distB < THRESHOLD) {
+    } else if (onExitB) {
       if (sessionStats.nextTrackBId && sessionStats.currentTrackId !== sessionStats.nextTrackBId) {
         const track = musicService.getTrackById(sessionStats.nextTrackBId);
         if (track) {
