@@ -100,21 +100,22 @@ const App: React.FC = () => {
   // Track current level's base BGM to revert to when leaving exit
   const levelBgmIdRef = useRef<string | undefined>(undefined);
 
-  // Update level base BGM when maze/level changes
+  // Initial Sync of Ref (only once or when session track changes strictly on load)
   useEffect(() => {
-    if (sessionStats.currentTrackId) {
+    // Only set if not set, to avoid overwriting with exit tracks
+    if (sessionStats.currentTrackId && !levelBgmIdRef.current) {
       levelBgmIdRef.current = sessionStats.currentTrackId;
     }
-  }, [maze, sessionStats.currentTrackId]);
+  }, [sessionStats.currentTrackId]);
 
-  // Handle Menu Close to stop preview (and effectively restore game music state)
+  // Handle Menu Open/Close for Audio Fading
   useEffect(() => {
-    if (!isMenuOpen) {
+    if (isMenuOpen) {
+      // Menu Opened: Fade game audio to 0
+      musicService.fadeGameAudioToZero();
+    } else {
+      // Menu Closed: Stop preview and restore game audio
       musicService.stopMenuPreview();
-      // Note: stopMenuPreview restores BGM volume. 
-      // If we are standing on an exit, handlePlayerUpdate will fire on next move? 
-      // No, handlePlayerUpdate fires on move. If we just close menu without moving, we might need to re-assert exit state.
-      // But for now let's assume BGM restore is safe default.
     }
   }, [isMenuOpen]);
 
@@ -219,6 +220,9 @@ const App: React.FC = () => {
       nextTrackAId: trackA.id,
       nextTrackBId: trackB.id
     });
+    // Reset BGM Ref
+    levelBgmIdRef.current = firstTrack.id;
+
     saveStats(resetStats);
     pendingTimeRef.current = 0;
     setMaze(generateMaze(BASE_GRID_SIZE, 0, 0));
@@ -288,6 +292,11 @@ const App: React.FC = () => {
 
     // Commit the music change (makes current preview the new BGM)
     musicService.confirmExit();
+
+    // Update the Ref to point to the NEW BGM (which is the current track)
+    if (sessionStats.currentTrackId) {
+      levelBgmIdRef.current = sessionStats.currentTrackId;
+    }
 
     // Pick next tracks for the NEXT level's exits
     const { trackA, trackB } = pickNextTracks();

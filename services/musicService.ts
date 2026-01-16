@@ -144,6 +144,12 @@ class MusicService {
         // If Exit audio was playing, it stays 0 unless App triggers it again.
     }
 
+    // Fade out game audio when menu opens (without stopping)
+    fadeGameAudioToZero() {
+        this.fadeTo(this.bgmAudio, 0);
+        this.fadeTo(this.exitAudio, 0);
+    }
+
     stopAll() {
         [this.audioA, this.audioB, this.previewAudio].forEach(audio => {
             audio.pause();
