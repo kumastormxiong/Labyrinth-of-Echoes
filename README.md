@@ -1,4 +1,4 @@
-# Labyrinth of Echoes / 回响迷宫
+# Labyrinth of Echoes / 幻径迷宫
 
 [English](#english) | [中文](#chinese)
 
@@ -40,7 +40,7 @@
 ## 中文
 
 ### 项目简介
-**Labyrinth of Echoes（回响迷宫）** 是一款基于 React、Three.js 和 Tailwind CSS 构建的无限第一人称 3D 迷宫跑酷游戏。玩家在充满迷幻色彩、不断变化的走廊中穿行，寻找出口以晋级到更复杂的关卡，并记录其终身统计数据。
+**Labyrinth of Echoes（幻径迷宫）** 是一款基于 React、Three.js 和 Tailwind CSS 构建的无限第一人称 3D 迷宫跑酷游戏。玩家在充满迷幻色彩、不断变化的走廊中穿行，寻找出口以晋级到更复杂的关卡，并记录其终身统计数据。
 
 ### 核心功能
 - **程序化迷宫生成**：每一关都使用深度优先搜索（DFS）算法唯一生成。

@@ -34,10 +34,14 @@ export interface GameStats {
   totalScore: number;
   totalTime: number; // in seconds
   totalKeyPresses: number;
+  trackHistory: string[];
 }
 
 export interface SessionStats {
   score: number;
   startTime: number;
   elapsedTime: number;
+  currentTrackId?: string;
+  nextTrackAId?: string;
+  nextTrackBId?: string;
 }

@@ -6,6 +6,7 @@ const DEFAULT_STATS: GameStats = {
   totalScore: 0,
   totalTime: 0,
   totalKeyPresses: 0,
+  trackHistory: [],
 };
 
 export const loadStats = (): GameStats => {
