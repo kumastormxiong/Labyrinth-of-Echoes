@@ -10,6 +10,10 @@ class MusicService {
     private exitATrackId: string | null = null;
     private exitBTrackId: string | null = null;
 
+    // 追踪出口音乐是否已经开始播放过
+    private exitAStarted: boolean = false;
+    private exitBStarted: boolean = false;
+
     private fadeIntervals: Map<HTMLAudioElement, number> = new Map();
     private maxVolume = 0.8;
     private crossfadeDuration = 1000;
@@ -40,7 +44,7 @@ class MusicService {
         return MUSIC_TRACKS.find(t => t.id === id) || null;
     }
 
-    // 初始化关卡：同时加载并播放 3 首曲目
+    // 初始化关卡：加载 3 首曲目，但只播放 BGM
     initLevel(bgmTrack: MusicTrack, exitATrack: MusicTrack, exitBTrack: MusicTrack) {
         // 停止旧的
         this.stopGameTracks();
@@ -49,46 +53,93 @@ class MusicService {
         this.exitATrackId = exitATrack.id;
         this.exitBTrackId = exitBTrack.id;
 
+        // 重置播放状态
+        this.exitAStarted = false;
+        this.exitBStarted = false;
+
+        // 加载所有 3 轨
         this.loadTrack(this.bgmAudio, bgmTrack);
         this.loadTrack(this.exitAAudio, exitATrack);
         this.loadTrack(this.exitBAudio, exitBTrack);
 
-        // 初始音量
+        // 仅播放 BGM
         this.bgmAudio.volume = this.maxVolume;
+        this.bgmAudio.play().catch(e => console.error("BGM play failed:", e));
+
+        // Exit A/B 仅加载，不播放
         this.exitAAudio.volume = 0;
         this.exitBAudio.volume = 0;
-
-        // 同时开始播放
-        this.bgmAudio.play().catch(e => console.error("BGM play failed:", e));
-        this.exitAAudio.play().catch(e => console.error("ExitA play failed:", e));
-        this.exitBAudio.play().catch(e => console.error("ExitB play failed:", e));
     }
 
     // 踩到 Exit A
     onEnterExitA() {
+        // BGM 静音
         this.fadeTo(this.bgmAudio, 0);
+
+        // 如果 Exit A 尚未播放，开始播放
+        if (!this.exitAStarted) {
+            this.exitAAudio.play().catch(e => console.error("ExitA play failed:", e));
+            this.exitAStarted = true;
+        }
         this.fadeTo(this.exitAAudio, this.maxVolume);
-        this.fadeTo(this.exitBAudio, 0); // 确保 B 静音
+
+        // Exit B 静音
+        this.fadeTo(this.exitBAudio, 0);
     }
 
     // 踩到 Exit B
     onEnterExitB() {
+        // BGM 静音
         this.fadeTo(this.bgmAudio, 0);
+
+        // 如果 Exit B 尚未播放，开始播放
+        if (!this.exitBStarted) {
+            this.exitBAudio.play().catch(e => console.error("ExitB play failed:", e));
+            this.exitBStarted = true;
+        }
         this.fadeTo(this.exitBAudio, this.maxVolume);
-        this.fadeTo(this.exitAAudio, 0); // 确保 A 静音
+
+        // Exit A 静音
+        this.fadeTo(this.exitAAudio, 0);
     }
 
     // 离开出口
     onLeaveExit() {
+        // BGM 恢复
         this.fadeTo(this.bgmAudio, this.maxVolume);
+
+        // Exit A/B 静音但继续播放
         this.fadeTo(this.exitAAudio, 0);
         this.fadeTo(this.exitBAudio, 0);
     }
 
-    // 确认进入出口，返回当前应为新 BGM 的 trackId
+    // 确认进入出口，返回新 BGM 的 trackId
     confirmExit(type: 'A' | 'B'): string | null {
         const newBgmId = type === 'A' ? this.exitATrackId : this.exitBTrackId;
-        // 调用方将使用这个 ID 作为下一关的 BGM，并调用 initLevel
+
+        // 停止旧 BGM
+        this.bgmAudio.pause();
+        this.bgmAudio.currentTime = 0;
+
+        // 停止未选中的出口音乐
+        if (type === 'A') {
+            this.exitBAudio.pause();
+            this.exitBAudio.currentTime = 0;
+        } else {
+            this.exitAAudio.pause();
+            this.exitAAudio.currentTime = 0;
+        }
+
+        // 选中的出口音乐将在下次 initLevel 时成为新 BGM
+        // 这里也停止它，因为 initLevel 会重新加载
+        if (type === 'A') {
+            this.exitAAudio.pause();
+            this.exitAAudio.currentTime = 0;
+        } else {
+            this.exitBAudio.pause();
+            this.exitBAudio.currentTime = 0;
+        }
+
         return newBgmId;
     }
 
@@ -119,7 +170,7 @@ class MusicService {
 
     // 菜单历史记录预览
     playMenuPreview(track: MusicTrack) {
-        this.pauseGameAudio(); // 先静音游戏音轨
+        this.pauseGameAudio();
         this.loadTrack(this.previewAudio, track);
         this.previewAudio.currentTime = 0;
         this.previewAudio.play().catch(e => console.error("Preview play failed:", e));
@@ -134,7 +185,7 @@ class MusicService {
         this.resumeGameAudio();
     }
 
-    // 停止游戏播放轨道 (用于关卡切换)
+    // 停止游戏播放轨道
     private stopGameTracks() {
         [this.bgmAudio, this.exitAAudio, this.exitBAudio].forEach(audio => {
             audio.pause();
@@ -160,6 +211,8 @@ class MusicService {
         this.bgmTrackId = null;
         this.exitATrackId = null;
         this.exitBTrackId = null;
+        this.exitAStarted = false;
+        this.exitBStarted = false;
         this.volumeSnapshot = null;
     }
 
@@ -182,7 +235,7 @@ class MusicService {
             return;
         }
 
-        const stepTime = 50; // ms
+        const stepTime = 50;
         const steps = this.crossfadeDuration / stepTime;
         const volStep = diff / steps;
 
