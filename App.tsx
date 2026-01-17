@@ -89,17 +89,26 @@ const App: React.FC = () => {
     return () => window.removeEventListener('beforeunload', handleUnload);
   }, [pickNextTracks]);
 
-  // Handle Music Playback on Start (3-Track Init)
+  // Handle Music Playback on Start (3-Track Init) - Only init when maze changes
+  const musicInitializedRef = useRef<boolean>(false);
+
   useEffect(() => {
-    if (isPlaying && sessionStats.currentTrackId && sessionStats.nextTrackAId && sessionStats.nextTrackBId && !isCrossing) {
+    // Only initialize music when isPlaying becomes true and we haven't initialized yet
+    if (isPlaying && !musicInitializedRef.current && sessionStats.currentTrackId && sessionStats.nextTrackAId && sessionStats.nextTrackBId && !isCrossing) {
       const bgmTrack = musicService.getTrackById(sessionStats.currentTrackId);
       const exitATrack = musicService.getTrackById(sessionStats.nextTrackAId);
       const exitBTrack = musicService.getTrackById(sessionStats.nextTrackBId);
       if (bgmTrack && exitATrack && exitBTrack) {
         musicService.initLevel(bgmTrack, exitATrack, exitBTrack);
+        musicInitializedRef.current = true;
       }
     }
-  }, [isPlaying, sessionStats.currentTrackId, sessionStats.nextTrackAId, sessionStats.nextTrackBId, isCrossing]);
+  }, [isPlaying, isCrossing, sessionStats.currentTrackId, sessionStats.nextTrackAId, sessionStats.nextTrackBId]);
+
+  // Reset music initialization when maze changes (new level)
+  useEffect(() => {
+    musicInitializedRef.current = false;
+  }, [maze]);
 
   // Track current level's base BGM to revert UI display when leaving exit
   const levelBgmIdRef = useRef<string | undefined>(undefined);
