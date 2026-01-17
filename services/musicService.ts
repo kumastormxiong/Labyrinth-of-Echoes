@@ -75,6 +75,7 @@ class MusicService {
 
     cancelExitPreview() {
         // Restore BGM
+        if (this.bgmAudio.paused) this.bgmAudio.play().catch(console.error);
         this.fadeTo(this.bgmAudio, this.maxVolume);
 
         // Silence Exit Audio
@@ -139,6 +140,7 @@ class MusicService {
 
         // For now, to meet exact requirement:
         // "Maze bgm volume gradually increases to 80%".
+        if (this.bgmAudio.paused) this.bgmAudio.play().catch(console.error);
         this.fadeTo(this.bgmAudio, this.maxVolume);
 
         // If Exit audio was playing, it stays 0 unless App triggers it again.
