@@ -89,21 +89,23 @@ const App: React.FC = () => {
     return () => window.removeEventListener('beforeunload', handleUnload);
   }, [pickNextTracks]);
 
-  // Handle Music Playback on Start
-  // Handle Music Playback on Start
+  // Handle Music Playback on Start (3-Track Init)
   useEffect(() => {
-    if (isPlaying && sessionStats.currentTrackId && !isCrossing) {
-      const track = musicService.getTrackById(sessionStats.currentTrackId);
-      if (track) musicService.playInitialBGM(track);
+    if (isPlaying && sessionStats.currentTrackId && sessionStats.nextTrackAId && sessionStats.nextTrackBId && !isCrossing) {
+      const bgmTrack = musicService.getTrackById(sessionStats.currentTrackId);
+      const exitATrack = musicService.getTrackById(sessionStats.nextTrackAId);
+      const exitBTrack = musicService.getTrackById(sessionStats.nextTrackBId);
+      if (bgmTrack && exitATrack && exitBTrack) {
+        musicService.initLevel(bgmTrack, exitATrack, exitBTrack);
+      }
     }
-  }, [isPlaying, sessionStats.currentTrackId, isCrossing]);
+  }, [isPlaying, sessionStats.currentTrackId, sessionStats.nextTrackAId, sessionStats.nextTrackBId, isCrossing]);
 
-  // Track current level's base BGM to revert to when leaving exit
+  // Track current level's base BGM to revert UI display when leaving exit
   const levelBgmIdRef = useRef<string | undefined>(undefined);
 
-  // Initial Sync of Ref (only once or when session track changes strictly on load)
+  // Initial Sync of Ref
   useEffect(() => {
-    // Only set if not set, to avoid overwriting with exit tracks
     if (sessionStats.currentTrackId && !levelBgmIdRef.current) {
       levelBgmIdRef.current = sessionStats.currentTrackId;
     }
@@ -112,10 +114,8 @@ const App: React.FC = () => {
   // Handle Menu Open/Close for Audio Fading
   useEffect(() => {
     if (isMenuOpen) {
-      // Menu Opened: Fade game audio to 0
-      musicService.fadeGameAudioToZero();
+      musicService.pauseGameAudio();
     } else {
-      // Menu Closed: Stop preview and restore game audio
       musicService.stopMenuPreview();
     }
   }, [isMenuOpen]);
@@ -243,33 +243,28 @@ const App: React.FC = () => {
     setPlayerState({ x, y, dir });
     if (!maze || isCrossing) return;
 
-    // Exact Tile Music Logic
+    // Exact Tile Music Logic (3-Track Volume Control)
     const onExitA = x === maze.exitA.x && y === maze.exitA.y;
     const onExitB = x === maze.exitB.x && y === maze.exitB.y;
 
     if (onExitA) {
+      // Update UI display to show Exit A track
       if (sessionStats.nextTrackAId && sessionStats.currentTrackId !== sessionStats.nextTrackAId) {
-        const track = musicService.getTrackById(sessionStats.nextTrackAId);
-        if (track) {
-          setSessionStats(prev => ({ ...prev, currentTrackId: sessionStats.nextTrackAId }));
-          musicService.previewExit(track);
-        }
+        setSessionStats(prev => ({ ...prev, currentTrackId: sessionStats.nextTrackAId }));
       }
+      musicService.onEnterExitA();
     } else if (onExitB) {
+      // Update UI display to show Exit B track
       if (sessionStats.nextTrackBId && sessionStats.currentTrackId !== sessionStats.nextTrackBId) {
-        const track = musicService.getTrackById(sessionStats.nextTrackBId);
-        if (track) {
-          setSessionStats(prev => ({ ...prev, currentTrackId: sessionStats.nextTrackBId }));
-          musicService.previewExit(track);
-        }
+        setSessionStats(prev => ({ ...prev, currentTrackId: sessionStats.nextTrackBId }));
       }
+      musicService.onEnterExitB();
     } else {
-      // Revert to level BGM if we were on an exit
-      // We check if currentTrackId is different from levelBgmIdRef
+      // Revert to level BGM
       if (levelBgmIdRef.current && sessionStats.currentTrackId !== levelBgmIdRef.current) {
         setSessionStats(prev => ({ ...prev, currentTrackId: levelBgmIdRef.current }));
-        musicService.cancelExitPreview();
       }
+      musicService.onLeaveExit();
     }
   };
 
@@ -291,12 +286,12 @@ const App: React.FC = () => {
       history = [...stats.trackHistory, historyEntry];
     }
 
-    // Commit the music change (makes current preview the new BGM)
-    musicService.confirmExit();
+    // Confirm the exit - get the new BGM track ID
+    const newBgmId = musicService.confirmExit(type);
 
-    // Update the Ref to point to the NEW BGM (which is the current track)
-    if (sessionStats.currentTrackId) {
-      levelBgmIdRef.current = sessionStats.currentTrackId;
+    // Update the Ref to point to the NEW BGM
+    if (newBgmId) {
+      levelBgmIdRef.current = newBgmId;
     }
 
     // Pick next tracks for the NEXT level's exits

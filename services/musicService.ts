@@ -1,32 +1,33 @@
 import { MusicTrack, MUSIC_TRACKS } from '../constants';
 
 class MusicService {
-    private audioA: HTMLAudioElement;
-    private audioB: HTMLAudioElement;
+    private bgmAudio: HTMLAudioElement;
+    private exitAAudio: HTMLAudioElement;
+    private exitBAudio: HTMLAudioElement;
     private previewAudio: HTMLAudioElement;
 
-    // Track references logic
-    private bgmAudio: HTMLAudioElement;
-    private exitAudio: HTMLAudioElement;
+    private bgmTrackId: string | null = null;
+    private exitATrackId: string | null = null;
+    private exitBTrackId: string | null = null;
 
     private fadeIntervals: Map<HTMLAudioElement, number> = new Map();
     private maxVolume = 0.8;
     private crossfadeDuration = 1000;
 
+    // 音量快照 for menu pause/resume
+    private volumeSnapshot: { bgm: number, exitA: number, exitB: number } | null = null;
+
     constructor() {
-        this.audioA = new Audio();
-        this.audioB = new Audio();
+        this.bgmAudio = new Audio();
+        this.exitAAudio = new Audio();
+        this.exitBAudio = new Audio();
         this.previewAudio = new Audio();
 
-        [this.audioA, this.audioB, this.previewAudio].forEach(audio => {
+        [this.bgmAudio, this.exitAAudio, this.exitBAudio, this.previewAudio].forEach(audio => {
             audio.loop = true;
             audio.preload = "auto";
             audio.volume = 0;
         });
-        this.previewAudio.loop = true; // Preview loops too? Assuming yes based on "terminate" description only on close.
-
-        this.bgmAudio = this.audioA;
-        this.exitAudio = this.audioB;
     }
 
     getRandomTrack(excludeIds: string[] = []): MusicTrack {
@@ -39,77 +40,86 @@ class MusicService {
         return MUSIC_TRACKS.find(t => t.id === id) || null;
     }
 
-    // Initialize the first BGM
-    playInitialBGM(track: MusicTrack) {
-        this.stopAll();
-        this.loadTrack(this.bgmAudio, track);
-        this.bgmAudio.volume = 0;
-        this.bgmAudio.play().catch(e => console.error("Initial play failed:", e));
-        this.fadeTo(this.bgmAudio, this.maxVolume);
+    // 初始化关卡：同时加载并播放 3 首曲目
+    initLevel(bgmTrack: MusicTrack, exitATrack: MusicTrack, exitBTrack: MusicTrack) {
+        // 停止旧的
+        this.stopGameTracks();
+
+        this.bgmTrackId = bgmTrack.id;
+        this.exitATrackId = exitATrack.id;
+        this.exitBTrackId = exitBTrack.id;
+
+        this.loadTrack(this.bgmAudio, bgmTrack);
+        this.loadTrack(this.exitAAudio, exitATrack);
+        this.loadTrack(this.exitBAudio, exitBTrack);
+
+        // 初始音量
+        this.bgmAudio.volume = this.maxVolume;
+        this.exitAAudio.volume = 0;
+        this.exitBAudio.volume = 0;
+
+        // 同时开始播放
+        this.bgmAudio.play().catch(e => console.error("BGM play failed:", e));
+        this.exitAAudio.play().catch(e => console.error("ExitA play failed:", e));
+        this.exitBAudio.play().catch(e => console.error("ExitB play failed:", e));
     }
 
-    // Logic for interacting with Exit Tiles
-    previewExit(track: MusicTrack) {
-        // Ensure BGM continues playing but fades to 0
+    // 踩到 Exit A
+    onEnterExitA() {
         this.fadeTo(this.bgmAudio, 0);
+        this.fadeTo(this.exitAAudio, this.maxVolume);
+        this.fadeTo(this.exitBAudio, 0); // 确保 B 静音
+    }
 
-        // Load and play exit music on exitAudio
-        // Only load if different to avoid reset
-        const currentSrc = this.exitAudio.src;
-        const newSrc = this.getTrackUrl(track);
+    // 踩到 Exit B
+    onEnterExitB() {
+        this.fadeTo(this.bgmAudio, 0);
+        this.fadeTo(this.exitBAudio, this.maxVolume);
+        this.fadeTo(this.exitAAudio, 0); // 确保 A 静音
+    }
 
-        // Check if we need to load (using simple string include check as src is full URL)
-        // Or simpler: always load if logic demands, but check if already playing same track?
-        // Optimization: if exitAudio is already playing this track (maybe paused or vol 0), just fade in.
-        // But src check is tricky due to base url.
+    // 离开出口
+    onLeaveExit() {
+        this.fadeTo(this.bgmAudio, this.maxVolume);
+        this.fadeTo(this.exitAAudio, 0);
+        this.fadeTo(this.exitBAudio, 0);
+    }
 
-        if (!currentSrc.includes(track.filename)) {
-            this.loadTrack(this.exitAudio, track);
-            this.exitAudio.play().catch(e => console.error("Exit play failed:", e));
+    // 确认进入出口，返回当前应为新 BGM 的 trackId
+    confirmExit(type: 'A' | 'B'): string | null {
+        const newBgmId = type === 'A' ? this.exitATrackId : this.exitBTrackId;
+        // 调用方将使用这个 ID 作为下一关的 BGM，并调用 initLevel
+        return newBgmId;
+    }
+
+    // 菜单打开：暂停（静音）所有游戏音轨
+    pauseGameAudio() {
+        this.volumeSnapshot = {
+            bgm: this.bgmAudio.volume,
+            exitA: this.exitAAudio.volume,
+            exitB: this.exitBAudio.volume
+        };
+        this.fadeTo(this.bgmAudio, 0);
+        this.fadeTo(this.exitAAudio, 0);
+        this.fadeTo(this.exitBAudio, 0);
+    }
+
+    // 菜单关闭：恢复游戏音轨音量
+    resumeGameAudio() {
+        if (this.volumeSnapshot) {
+            this.fadeTo(this.bgmAudio, this.volumeSnapshot.bgm);
+            this.fadeTo(this.exitAAudio, this.volumeSnapshot.exitA);
+            this.fadeTo(this.exitBAudio, this.volumeSnapshot.exitB);
+            this.volumeSnapshot = null;
         } else {
-            if (this.exitAudio.paused) this.exitAudio.play();
+            // 默认恢复 BGM
+            this.fadeTo(this.bgmAudio, this.maxVolume);
         }
-
-        this.fadeTo(this.exitAudio, this.maxVolume);
     }
 
-    cancelExitPreview() {
-        // Restore BGM
-        if (this.bgmAudio.paused) this.bgmAudio.play().catch(console.error);
-        this.fadeTo(this.bgmAudio, this.maxVolume);
-
-        // Silence Exit Audio
-        // "Leaving A/B... volume down to 0"
-        this.fadeTo(this.exitAudio, 0, () => {
-            // Optional: Pause after fade to save resources? 
-            // User didn't strictly forbid pausing Aux tracks, only BGM persistence.
-            // But let's pause to be safe and clean.
-            // this.exitAudio.pause(); 
-        });
-    }
-
-    confirmExit() {
-        // The current Exit Audio becomes the new BGM
-        this.fadeTo(this.exitAudio, this.maxVolume); // Ensure it's full vol
-
-        // The old BGM stops (or just silent reset)
-        this.bgmAudio.pause();
-        this.bgmAudio.currentTime = 0;
-        this.bgmAudio.volume = 0;
-
-        // Swap roles
-        const temp = this.bgmAudio;
-        this.bgmAudio = this.exitAudio;
-        this.exitAudio = temp;
-    }
-
-    // Logic for Menu Preview
+    // 菜单历史记录预览
     playMenuPreview(track: MusicTrack) {
-        // Fade out ALL game audio (BGM and potential Exit)
-        this.fadeTo(this.bgmAudio, 0);
-        this.fadeTo(this.exitAudio, 0);
-
-        // Play Preview
+        this.pauseGameAudio(); // 先静音游戏音轨
         this.loadTrack(this.previewAudio, track);
         this.previewAudio.currentTime = 0;
         this.previewAudio.play().catch(e => console.error("Preview play failed:", e));
@@ -117,62 +127,45 @@ class MusicService {
     }
 
     stopMenuPreview() {
-        // Fade out Preview and STOP
         this.fadeTo(this.previewAudio, 0, () => {
             this.previewAudio.pause();
             this.previewAudio.currentTime = 0;
         });
-
-        // Restore Game Audio
-        // We need to know if we are on an exit or not? 
-        // App.tsx logic will typically call previewExit or cancelExitPreview on update.
-        // But simpler: Restore BGM to max. If we are on exit, App.tsx will trigger previewExit again?
-        // Or we just restore BGM generally.
-        // Wait, if we are on Exit, BGM should be 0, Exit should be 0.8.
-        // If we blindly restore BGM to 0.8, we might hear wrong thing.
-        // Strategy: Just stop preview. Let App.tsx component state (useEffect) handle restoring the correct game track state.
-        // However, we can provide a helper "dampenAll" / "restoreAll" or just leave it to specific calls.
-        // User requirement: "ESC window closed... Maze BGM volume to 80%".
-        // This implies valid state is "Maze BGM". If we were on Exit, maybe we should hear Exit?
-        // Let's assume standard restore is BGM -> 0.8. 
-        // But `cancelExitPreview` does exactly that. 
-        // We will expose a `restoreGameAudio()` that restores BGM, and allow App to override if on exit.
-
-        // For now, to meet exact requirement:
-        // "Maze bgm volume gradually increases to 80%".
-        if (this.bgmAudio.paused) this.bgmAudio.play().catch(console.error);
-        this.fadeTo(this.bgmAudio, this.maxVolume);
-
-        // If Exit audio was playing, it stays 0 unless App triggers it again.
+        this.resumeGameAudio();
     }
 
-    // Fade out game audio when menu opens (without stopping)
-    fadeGameAudioToZero() {
-        this.fadeTo(this.bgmAudio, 0);
-        this.fadeTo(this.exitAudio, 0);
-    }
-
-    stopAll() {
-        [this.audioA, this.audioB, this.previewAudio].forEach(audio => {
+    // 停止游戏播放轨道 (用于关卡切换)
+    private stopGameTracks() {
+        [this.bgmAudio, this.exitAAudio, this.exitBAudio].forEach(audio => {
             audio.pause();
+            audio.currentTime = 0;
             audio.volume = 0;
             if (this.fadeIntervals.has(audio)) {
                 clearInterval(this.fadeIntervals.get(audio));
                 this.fadeIntervals.delete(audio);
             }
         });
-        // Reset roles
-        this.bgmAudio = this.audioA;
-        this.exitAudio = this.audioB;
+    }
+
+    stopAll() {
+        [this.bgmAudio, this.exitAAudio, this.exitBAudio, this.previewAudio].forEach(audio => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.volume = 0;
+            if (this.fadeIntervals.has(audio)) {
+                clearInterval(this.fadeIntervals.get(audio));
+                this.fadeIntervals.delete(audio);
+            }
+        });
+        this.bgmTrackId = null;
+        this.exitATrackId = null;
+        this.exitBTrackId = null;
+        this.volumeSnapshot = null;
     }
 
     private loadTrack(audio: HTMLAudioElement, track: MusicTrack) {
         audio.src = `${import.meta.env.BASE_URL}music/${track.filename}`;
         audio.load();
-    }
-
-    private getTrackUrl(track: MusicTrack): string {
-        return `${import.meta.env.BASE_URL}music/${track.filename}`;
     }
 
     private fadeTo(audio: HTMLAudioElement, targetVol: number, onComplete?: () => void) {
@@ -199,7 +192,6 @@ class MusicService {
             currentStep++;
             const newVol = startVol + (volStep * currentStep);
 
-            // Clamp
             if (diff > 0) {
                 audio.volume = Math.min(newVol, targetVol);
             } else {
