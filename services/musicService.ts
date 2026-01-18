@@ -23,6 +23,8 @@ class MusicService {
     private exitAStarted: boolean = false;
     private exitBStarted: boolean = false;
 
+    private isPaused: boolean = false;
+
     private fadeIntervals: Map<HTMLAudioElement, number> = new Map();
     private targetVolumes: Map<HTMLAudioElement, number> = new Map();
 
@@ -76,15 +78,15 @@ class MusicService {
 
         if (newBgmAudio) {
             console.log("Seamless transition: Reusing existing audio for BGM");
-            // 确保音量恢复到最大（如果之前是淡出状态或者未满）
-            this.fadeTo(newBgmAudio, this.maxVolume);
+            // 确保音量恢复到最大（如果之前是淡出状态或者未满），除非处于暂停状态
+            this.fadeTo(newBgmAudio, this.isPaused ? 0 : this.maxVolume);
         } else {
             console.log("Cold start: Allocating new audio for BGM");
             // 正常的冷启动或未找到匹配项
             // 选择一个空闲的（未在播放的）作为 BGM，如果没有则强制抢占第一个（极少情况）
             newBgmAudio = this.getFreeAudio() || this.pool[0];
             this.loadTrack(newBgmAudio, bgmTrack);
-            newBgmAudio.volume = this.maxVolume;
+            newBgmAudio.volume = this.isPaused ? 0 : this.maxVolume;
             newBgmAudio.play().catch(e => console.error("BGM play failed:", e));
         }
 
@@ -128,6 +130,7 @@ class MusicService {
 
     // 踩到 Exit A
     onEnterExitA() {
+        if (this.isPaused) return;
         if (!this.activeAudios.bgm || !this.activeAudios.exitA || !this.activeAudios.exitB) return;
 
         // BGM 静音
@@ -146,6 +149,7 @@ class MusicService {
 
     // 踩到 Exit B
     onEnterExitB() {
+        if (this.isPaused) return;
         if (!this.activeAudios.bgm || !this.activeAudios.exitA || !this.activeAudios.exitB) return;
 
         // BGM 静音
@@ -164,6 +168,7 @@ class MusicService {
 
     // 离开出口
     onLeaveExit() {
+        if (this.isPaused) return;
         if (!this.activeAudios.bgm || !this.activeAudios.exitA || !this.activeAudios.exitB) return;
 
         // BGM 恢复
@@ -181,7 +186,7 @@ class MusicService {
 
         // 停止旧 BGM
         if (this.activeAudios.bgm) {
-            this.fadeTo(this.activeAudios.bgm, 0, () => {
+            this.fadeTo(this.activeAudios.bgm, 0, this.crossfadeDuration, () => {
                 this.activeAudios.bgm?.pause();
                 this.activeAudios.bgm!.currentTime = 0;
             });
@@ -209,27 +214,45 @@ class MusicService {
     pauseGameAudio() {
         if (!this.activeAudios.bgm) return;
 
-        this.volumeSnapshot = {
-            bgm: this.activeAudios.bgm?.volume || 0,
-            exitA: this.activeAudios.exitA?.volume || 0,
-            exitB: this.activeAudios.exitB?.volume || 0
+        this.isPaused = true;
+        console.log("Menu opened: Fading out game audio (500ms)");
+
+        // Helper to get the "intended" volume (target if fading, else current)
+        const getSnapshotVol = (audio: HTMLAudioElement | null) => {
+            if (!audio) return 0;
+            // If there's an active fade target, that's where we WERE going, so that's where we should resume to.
+            if (this.targetVolumes.has(audio)) {
+                return this.targetVolumes.get(audio)!;
+            }
+            return audio.volume;
         };
 
+        this.volumeSnapshot = {
+            bgm: getSnapshotVol(this.activeAudios.bgm),
+            exitA: getSnapshotVol(this.activeAudios.exitA),
+            exitB: getSnapshotVol(this.activeAudios.exitB)
+        };
+
+        const duration = 1000;
         [this.activeAudios.bgm, this.activeAudios.exitA, this.activeAudios.exitB].forEach(audio => {
-            if (audio) this.fadeTo(audio, 0);
+            if (audio) this.fadeTo(audio, 0, duration);
         });
     }
 
     // 菜单关闭：恢复游戏音轨音量
     resumeGameAudio() {
+        this.isPaused = false;
+        console.log("Menu closed: Resuming game audio (1000ms)");
+        const duration = 1000;
+
         if (this.volumeSnapshot && this.activeAudios.bgm) {
-            if (this.activeAudios.bgm) this.fadeTo(this.activeAudios.bgm, this.volumeSnapshot.bgm);
-            if (this.activeAudios.exitA) this.fadeTo(this.activeAudios.exitA, this.volumeSnapshot.exitA);
-            if (this.activeAudios.exitB) this.fadeTo(this.activeAudios.exitB, this.volumeSnapshot.exitB);
+            if (this.activeAudios.bgm) this.fadeTo(this.activeAudios.bgm, this.volumeSnapshot.bgm, duration);
+            if (this.activeAudios.exitA) this.fadeTo(this.activeAudios.exitA, this.volumeSnapshot.exitA, duration);
+            if (this.activeAudios.exitB) this.fadeTo(this.activeAudios.exitB, this.volumeSnapshot.exitB, duration);
             this.volumeSnapshot = null;
         } else {
             // 默认恢复 BGM
-            if (this.activeAudios.bgm) this.fadeTo(this.activeAudios.bgm, this.maxVolume);
+            if (this.activeAudios.bgm) this.fadeTo(this.activeAudios.bgm, this.maxVolume, duration);
         }
     }
 
@@ -243,7 +266,8 @@ class MusicService {
     }
 
     stopMenuPreview() {
-        this.fadeTo(this.previewAudio, 0, () => {
+        const duration = 1000;
+        this.fadeTo(this.previewAudio, 0, duration, () => {
             this.previewAudio.pause();
             this.previewAudio.currentTime = 0;
         });
@@ -293,9 +317,7 @@ class MusicService {
         }
     }
 
-
-
-    private fadeTo(audio: HTMLAudioElement, targetVol: number, onComplete?: () => void) {
+    private fadeTo(audio: HTMLAudioElement, targetVol: number, duration: number = this.crossfadeDuration, onComplete?: () => void) {
         // 如果已经有一个针对该音频的渐变正在进行，且目标音量相同，则无需重复操作
         if (this.targetVolumes.has(audio) && Math.abs(this.targetVolumes.get(audio)! - targetVol) < 0.001) {
             return;
@@ -319,7 +341,7 @@ class MusicService {
         }
 
         const stepTime = 50;
-        const steps = this.crossfadeDuration / stepTime;
+        const steps = duration / stepTime;
         const volStep = diff / steps;
 
         let currentStep = 0;
