@@ -105,10 +105,7 @@ const App: React.FC = () => {
     }
   }, [isPlaying, isCrossing, sessionStats.currentTrackId, sessionStats.nextTrackAId, sessionStats.nextTrackBId]);
 
-  // Reset music initialization when maze changes (new level)
-  useEffect(() => {
-    musicInitializedRef.current = false;
-  }, [maze]);
+
 
   // Track current level's base BGM to revert UI display when leaving exit
   const levelBgmIdRef = useRef<string | undefined>(undefined);
@@ -248,7 +245,7 @@ const App: React.FC = () => {
     setStats(prev => ({ ...prev, totalKeyPresses: prev.totalKeyPresses + 1 }));
   };
 
-  const handlePlayerUpdate = (x: number, y: number, dir: Direction) => {
+  const handlePlayerUpdate = useCallback((x: number, y: number, dir: Direction) => {
     setPlayerState({ x, y, dir });
     if (!maze || isCrossing) return;
 
@@ -256,13 +253,18 @@ const App: React.FC = () => {
     const onExitA = x === maze.exitA.x && y === maze.exitA.y;
     const onExitB = x === maze.exitB.x && y === maze.exitB.y;
 
+    // console.log(`Player at (${x}, ${y}), ExitA: (${maze.exitA.x}, ${maze.exitA.y}), ExitB: (${maze.exitB.x}, ${maze.exitB.y})`);
+    // console.log(`onExitA: ${onExitA}, onExitB: ${onExitB}`);
+
     if (onExitA) {
+      // console.log('Calling musicService.onEnterExitA()');
       // Update UI display to show Exit A track
       if (sessionStats.nextTrackAId && sessionStats.currentTrackId !== sessionStats.nextTrackAId) {
         setSessionStats(prev => ({ ...prev, currentTrackId: sessionStats.nextTrackAId }));
       }
       musicService.onEnterExitA();
     } else if (onExitB) {
+      // console.log('Calling musicService.onEnterExitB()');
       // Update UI display to show Exit B track
       if (sessionStats.nextTrackBId && sessionStats.currentTrackId !== sessionStats.nextTrackBId) {
         setSessionStats(prev => ({ ...prev, currentTrackId: sessionStats.nextTrackBId }));
@@ -275,7 +277,7 @@ const App: React.FC = () => {
       }
       musicService.onLeaveExit();
     }
-  };
+  }, [maze, isCrossing, sessionStats]);
 
   const handleExitLevel = (type: 'A' | 'B') => {
     if (!maze) return;
@@ -339,6 +341,7 @@ const App: React.FC = () => {
 
     setMaze(newMaze);
     setIsCrossing(false);
+    musicInitializedRef.current = false; // Force reset music init for next render cycle
   };
 
   return (
