@@ -10,6 +10,47 @@ interface HUDProps {
   mazeSize: number;
 }
 
+interface LevelUpNotificationProps {
+  show: boolean;
+  oldSize: number;
+  newSize: number;
+}
+
+export const LevelUpNotification: React.FC<LevelUpNotificationProps> = ({ show, oldSize, newSize }) => {
+  if (!show) return null;
+
+  return (
+    <div className="fixed top-0 left-0 w-full z-50 flex justify-center pointer-events-none mt-0">
+      <style>
+        {`
+              @keyframes fadeInOut {
+                0% { opacity: 0; transform: translateY(-100%); }
+                20% { opacity: 1; transform: translateY(0); }
+                80% { opacity: 1; transform: translateY(0); }
+                100% { opacity: 0; transform: translateY(-100%); }
+              }
+            `}
+      </style>
+      <div
+        className="bg-black/90 backdrop-blur-md border border-t-0 rounded-b-2xl border-cyan-500/50 px-8 py-2 min-w-[280px] text-center shadow-[0_4px_20px_rgba(34,211,238,0.25)]"
+        style={{ animation: 'fadeInOut 5s ease-in-out forwards' }}
+      >
+        <div className="flex items-center justify-center gap-3">
+          <h2 className="text-sm text-cyan-300 font-bold tracking-[0.2em] uppercase animate-pulse">
+            Sector Expanded
+          </h2>
+          <div className="h-3 w-px bg-cyan-500/50"></div>
+          <div className="text-xs text-white font-mono font-bold tracking-widest">
+            <span className="text-gray-400">{oldSize}x{oldSize}</span>
+            <span className="text-cyan-500 mx-2">➔</span>
+            <span className="text-cyan-300 text-sm">{newSize}x{newSize}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const HUD: React.FC<HUDProps> = ({ stats, sessionStats, mazeSize }) => {
   const [showMusicTitle, setShowMusicTitle] = useState(false);
   const currentTrack = MUSIC_TRACKS.find(t => t.id === sessionStats.currentTrackId);

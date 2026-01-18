@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Maze3D } from './components/Maze3D';
-import { HUD, Menu, Minimap } from './components/UI';
+import { HUD, Menu, Minimap, LevelUpNotification } from './components/UI';
 import { MazeData, GameStats, SessionStats, Direction, HighScoreRecord } from './types';
 import { generateMaze } from './services/mazeGenerator';
 import { loadStats, saveStats, loadHighScore, checkAndUpdateHighScore } from './services/storageService';
@@ -24,6 +24,9 @@ const App: React.FC = () => {
 
   // Music State Tracking
   const [isCrossing, setIsCrossing] = useState(false);
+
+  // Level Up Notification State
+  const [levelUpEvent, setLevelUpEvent] = useState<{ show: boolean, oldSize: number, newSize: number } | null>(null);
 
   // Timers and Persistence
   const lastTimeRef = useRef<number>(Date.now());
@@ -343,6 +346,13 @@ const App: React.FC = () => {
 
     const exitNode = type === 'A' ? maze.exitA : maze.exitB;
     const newSize = getMazeSize(newTotalScore);
+
+    // Check for Level Up (Size Increase)
+    if (newSize > maze.width) {
+      setLevelUpEvent({ show: true, oldSize: maze.width, newSize: newSize });
+      setTimeout(() => setLevelUpEvent(null), 5000); // 5s duration (1s in, 3s hold, 1s out)
+    }
+
     // 确保入口坐标在新迷宫尺寸范围内
     const safeEntryX = Math.min(exitNode.x, newSize - 1);
     const safeEntryY = Math.min(exitNode.y, newSize - 1);
@@ -372,6 +382,12 @@ const App: React.FC = () => {
         }}
         sessionStats={sessionStats}
         mazeSize={maze ? maze.width : BASE_GRID_SIZE}
+      />
+
+      <LevelUpNotification
+        show={levelUpEvent?.show || false}
+        oldSize={levelUpEvent?.oldSize || 0}
+        newSize={levelUpEvent?.newSize || 0}
       />
 
       {showMap && maze && (
