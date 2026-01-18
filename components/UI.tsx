@@ -191,8 +191,8 @@ export const Menu: React.FC<MenuProps> = ({ stats, sessionStats, highScore, onRe
   const showNameInput = isInitial && !stats.playerName;
 
   return (
-    <div className="absolute inset-0 bg-black/90 backdrop-blur-xl z-50 flex items-center justify-center overflow-y-auto pt-10 pb-10">
-      <div className="bg-gray-900 border border-purple-500/30 p-8 rounded-2xl max-w-lg w-full shadow-[0_0_100px_rgba(168,85,247,0.15)] text-center relative mx-4">
+    <div className="absolute inset-0 bg-black/90 backdrop-blur-xl z-50 flex items-center justify-center overflow-y-auto pt-4 pb-4">
+      <div className="bg-gray-900 border border-purple-500/30 p-6 rounded-2xl max-w-lg w-full shadow-[0_0_100px_rgba(168,85,247,0.15)] text-center relative mx-4">
         <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 mb-1 italic tracking-tighter">
           幻径迷宫
         </h1>
@@ -202,14 +202,16 @@ export const Menu: React.FC<MenuProps> = ({ stats, sessionStats, highScore, onRe
 
         {/* High Score Display */}
         {highScore && (
-          <div className="mb-4 p-4 bg-gradient-to-r from-yellow-900/20 to-amber-900/20 border border-yellow-500/30 rounded-lg">
-            <div className="text-base text-yellow-500/70 uppercase tracking-widest mb-2">🏆 历史最高分</div>
-            <div className="flex items-center justify-between text-2xl">
-              <span className="text-yellow-300 font-bold">{highScore.playerName}</span>
-              <span className="text-yellow-100 font-bold">{highScore.score}分</span>
+          <div className="mb-2 px-4 py-3 bg-gradient-to-r from-yellow-900/20 to-amber-900/20 border border-yellow-500/30 rounded-lg flex items-baseline justify-between">
+            <div className="flex items-baseline gap-3">
+              <span className="text-3xl text-yellow-300 font-black">🏆 </span>
+              <span className="text-3xl text-yellow-300 font-black">{highScore.playerName}</span>
             </div>
-            <div className="text-base text-yellow-500/50 mt-2">
-              {Math.floor(highScore.time)}s · {highScore.keyPresses}步
+            <div className="flex items-baseline gap-3">
+              <span className="text-3xl text-yellow-100 font-black">{highScore.score}<span className="text-sm font-bold ml-0.5 text-yellow-500/80">分</span></span>
+              <span className="text-xs text-yellow-500/50 font-mono font-bold">
+                {Math.floor(highScore.time)}s · {highScore.keyPresses}步
+              </span>
             </div>
           </div>
         )}
@@ -239,7 +241,7 @@ export const Menu: React.FC<MenuProps> = ({ stats, sessionStats, highScore, onRe
             <h3 className="text-xs text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-2">
               <Music className="w-3 h-3" /> Exploration Log (Music)
             </h3>
-            <div className="max-h-64 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+            <div className="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
               {stats.trackHistory.map((entry, index) => {
                 const track = MUSIC_TRACKS.find(t => t.id === entry.trackId);
                 return (
@@ -315,15 +317,29 @@ export const Menu: React.FC<MenuProps> = ({ stats, sessionStats, highScore, onRe
           </button>
 
           {!isInitial && (
+            <div className="text-gray-500 text-[10px] font-mono tracking-wide space-y-1 py-1 border-t border-white/5 pt-3">
+              <p className="uppercase text-purple-400/70 mb-1">=== SCORING RULES / 计分规则 ===</p>
+              <p>
+                <span className="text-green-500/80">Exit A: +1 SCORE</span>
+                <span className="mx-2">|</span>
+                <span className="text-blue-500/80">Exit B: +3 SCORE</span>
+              </p>
+              <p className="text-red-400/70 mt-1">
+                [TAB] MAP: -5 SCORE
+              </p>
+            </div>
+          )}
+
+          {!isInitial && (
             <button
               onClick={() => {
-                if (confirm('TERMINATE ALL DATA?')) {
+                if (confirm('确定要删除所有进度和历史记录吗？\nDELETE ALL PROGRESS AND DATA?')) {
                   onReset();
                 }
               }}
               className="w-full py-2 text-gray-600 hover:text-red-500 text-[10px] tracking-[0.3em] uppercase transition-colors"
             >
-              [ RESET PROGRESS ]
+              [ 重置所有数据 / RESET ALL DATA ]
             </button>
           )}
         </div>

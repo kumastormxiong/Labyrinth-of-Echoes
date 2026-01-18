@@ -154,14 +154,21 @@ const App: React.FC = () => {
       if (e.key === 'Escape') {
         if (showMap) setShowMap(false); // Close map first if open
         else {
-          setIsMenuOpen(prev => {
-            const newState = !prev;
-            if (newState) {
-              // Sync time when opening menu
-              setStats(current => syncAndSave(current, sessionStats));
-            }
-            return newState;
-          });
+          const willOpen = !isMenuOpen; // Capture current state closure
+          if (willOpen) {
+            // Sync time BEFORE changing state
+            const delta = pendingTimeRef.current;
+            pendingTimeRef.current = 0;
+            setStats(current => {
+              const updated = {
+                ...current,
+                totalTime: current.totalTime + delta
+              };
+              saveStats(updated);
+              return updated;
+            });
+          }
+          setIsMenuOpen(willOpen);
         }
       }
       if (e.key === 'Tab') {
@@ -309,18 +316,20 @@ const App: React.FC = () => {
     const { trackA, trackB } = pickNextTracks();
 
     // Explicitly sync time, update score/history and SAVE
+    const pendingTime = pendingTimeRef.current;
+    pendingTimeRef.current = 0;
+
     setStats(prev => {
       const updated = {
         ...prev,
         totalScore: newTotalScore,
         trackHistory: history,
-        totalTime: prev.totalTime + pendingTimeRef.current
+        totalTime: prev.totalTime + pendingTime
       };
       saveStats(updated);
       // Check and update high score
       const updatedHighScore = checkAndUpdateHighScore(updated);
       if (updatedHighScore) setHighScore(updatedHighScore);
-      pendingTimeRef.current = 0;
       return updated;
     });
 
@@ -357,7 +366,10 @@ const App: React.FC = () => {
       )}
 
       <HUD
-        stats={stats}
+        stats={{
+          ...stats,
+          totalTime: stats.totalTime + pendingTimeRef.current
+        }}
         sessionStats={sessionStats}
         mazeSize={maze ? maze.width : BASE_GRID_SIZE}
       />
